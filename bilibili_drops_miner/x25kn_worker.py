@@ -176,7 +176,7 @@ class X25KnWorker:
                 except asyncio.TimeoutError:
                     continue
             try:
-                progresses = await self.client.get_task_progress(task_ids)
+                progresses, _ = await self.client.get_task_progress(task_ids)
                 if not progresses:
                     LOGGER.warning("未获取到任务进度，请检查任务 ID 是否正确")
                 else:

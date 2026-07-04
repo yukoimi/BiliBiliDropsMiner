@@ -483,10 +483,12 @@ class BilibiliClient:
             next_seq=next_seq,
         )
 
-    async def get_task_progress(self, task_ids: list[str]) -> list[TaskProgress]:
+    async def get_task_progress(
+        self, task_ids: list[str]
+    ) -> tuple[list[TaskProgress], dict[str, Any]]:
         normalized_ids = normalize_task_ids(task_ids)
         if not normalized_ids:
-            return []
+            return [], {}
         if not self.bili_jct:
             raise ValueError("cookie 缺少 bili_jct，无法查询任务进度")
 
@@ -505,7 +507,7 @@ class BilibiliClient:
             },
             retry_on_wbi_miss=True,
         )
-        return parse_task_progress_payload(payload)
+        return parse_task_progress_payload(payload), payload
 
     async def get_mission_reward_info(self, task_id: str) -> MissionRewardInfo:
         normalized_id = normalize_task_id(task_id)

@@ -16,8 +16,62 @@ from bilibili_drops_miner.client_parts.task_parsing import (
 )
 
 
+_WATCH_TYPES = {"watch_time", "watch", "live_watch", "duration", "live_time"}
+
+
 def normalize_task_ids(task_ids: list[str]) -> list[str]:
     return [task_id.strip() for task_id in task_ids if task_id.strip()]
+
+
+def extract_watch_progress_from_payload(
+    payload: dict[str, Any],
+) -> tuple[int, int]:
+    """从任务进度 API 原始响应中提取有效观看时长。
+
+    Returns:
+        (cur_value, limit_value)：找到的最佳观看类指标的进度值，单位分钟。
+        未找到时返回 (0, 0)。
+    """
+    data = payload.get("data") or {}
+    if isinstance(data, list):
+        task_list = data
+    elif isinstance(data, dict):
+        task_list = data.get("list") or data.get("tasks") or []
+    else:
+        task_list = []
+
+    best_cur: float = 0
+    best_limit: float = 0
+
+    for item in task_list:
+        if not isinstance(item, dict):
+            continue
+        indicators = item.get("indicators")
+        if isinstance(indicators, dict):
+            indicators = [indicators]
+        for indicator in indicators or []:
+            if not isinstance(indicator, dict):
+                continue
+            indicator_type = str(
+                indicator.get("type")
+                or indicator.get("indicator_type")
+                or indicator.get("indicator_id")
+                or ""
+            ).lower()
+            if indicator_type not in _WATCH_TYPES:
+                continue
+            try:
+                cur = float(indicator.get("cur_value") or indicator.get("cur") or 0)
+                limit = float(
+                    indicator.get("limit") or indicator.get("target") or 0
+                )
+            except (TypeError, ValueError):
+                continue
+            if limit > best_limit:
+                best_cur = cur
+                best_limit = limit
+
+    return int(best_cur), int(best_limit)
 
 
 def parse_task_checkpoints(check_points: Any) -> list[TaskCheckpointProgress]:
